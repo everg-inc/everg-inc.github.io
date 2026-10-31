@@ -1,0 +1,88 @@
+#!/bin/bash
+# 画面HTMLの取得（改修前後の比較用。/ship の自己確認と動作検証役が使う）
+#
+#   usage: bin/screen-snapshot <out_dir> <urls_file>
+#     urls_file … 1行1パス。SNAP_BASE 配下の相対パス。空行と # 行は無視
+#
+#   設定: 同じディレクトリの screen.conf を読む（無ければ既定値）。環境変数 SNAP_* が優先
+#     SNAP_BASE            例 http://localhost:8090/demo
+#     SNAP_LOGIN_MODE      form | none | command
+#       form    … LOGIN_PATH を GET して CSRF トークンを拾い、LOGIN_USER_FIELD / LOGIN_PASS_FIELD で POST（Laravel のログイン画面など）
+#       none    … ログイン不要
+#       command … SNAP_COOKIE_COMMAND を実行し、標準出力の Cookie ヘッダ値（例 "laravel_session=…"）を使う
+#                 （Livewire/Filament のようにフォーム POST で入れないアプリ向け。コマンドは案件側で用意する）
+#     SNAP_LOGIN_PATH / SNAP_LOGIN_USER_FIELD / SNAP_LOGIN_PASS_FIELD / SNAP_LOGIN_TOKEN_FIELD / SNAP_LOGIN_USER / SNAP_LOGIN_PASS / SNAP_LOGIN_OK_CODE
+#     SNAP_NORMALIZE_SED   毎回変わる値を消す追加の sed 式（任意）
+#
+#   出力: <out_dir>/<パスを安全化した名前>.html（毎回変わる値＝CSRFトークン・キャッシュ破り値などを除去済み）
+#         <out_dir>/index.tsv（HTTP状態 \t パス \t ファイル名） / <out_dir>/REV（取得時の git HEAD）
+
+set -eu
+out="${1:?out_dir}"; urls="${2:?urls_file}"
+
+conf="$(dirname "$0")/screen.conf"
+# 環境変数 > screen.conf > 既定値。conf は無条件代入で書かれるので、source の前に環境変数を控えて後で戻す
+env_keep="$(env | grep -E '^SNAP_' || true)"
+env_user="${SNAP_LOGIN_USER:-}"; env_old_user="${SNAP_LOGIN:-}"      # SNAP_LOGIN / SNAP_PASSWORD は旧名（互換）
+env_pass="${SNAP_LOGIN_PASS:-}"; env_old_pass="${SNAP_PASSWORD:-}"
+[ -f "$conf" ] && . "$conf"
+while IFS='=' read -r k v; do [ -n "$k" ] && export "$k=$v"; done <<< "$env_keep"
+# 旧名が環境変数にあり新名が環境変数に無い時は、旧名が conf の新名より優先
+[ -z "$env_user" ] && [ -n "$env_old_user" ] && SNAP_LOGIN_USER="$env_old_user"
+[ -z "$env_pass" ] && [ -n "$env_old_pass" ] && SNAP_LOGIN_PASS="$env_old_pass"
+BASE="${SNAP_BASE:-http://localhost:8080}"
+MODE="${SNAP_LOGIN_MODE:-none}"
+LOGIN_PATH="${SNAP_LOGIN_PATH:-login}"
+USER_FIELD="${SNAP_LOGIN_USER_FIELD:-email}"
+PASS_FIELD="${SNAP_LOGIN_PASS_FIELD:-password}"
+TOKEN_FIELD="${SNAP_LOGIN_TOKEN_FIELD:-_token}"
+LOGIN_USER="${SNAP_LOGIN_USER:-}"
+LOGIN_PASS="${SNAP_LOGIN_PASS:-}"
+OK_CODE="${SNAP_LOGIN_OK_CODE:-302}"
+COOKIE_COMMAND="${SNAP_COOKIE_COMMAND:-}"
+EXTRA_SED="${SNAP_NORMALIZE_SED:-}"
+
+mkdir -p "$out"
+cj="$(mktemp)"; trap 'rm -f "$cj"' EXIT
+cookie_header=()
+
+case "$MODE" in
+  form)
+    token=""
+    if [ -n "$TOKEN_FIELD" ]; then
+      token="$(curl -s -c "$cj" "$BASE/$LOGIN_PATH" | grep -o "name=\"$TOKEN_FIELD\" value=\"[^\"]*\"" | head -1 | sed 's/.*value="//;s/"$//')"
+      [ -n "$token" ] || { echo "login page: $TOKEN_FIELD not found ($BASE/$LOGIN_PATH)" >&2; exit 1; }
+    fi
+    code="$(curl -s -b "$cj" -c "$cj" -o /dev/null -w '%{http_code}' -X POST "$BASE/$LOGIN_PATH" \
+            ${token:+--data-urlencode "$TOKEN_FIELD=$token"} \
+            --data-urlencode "$USER_FIELD=$LOGIN_USER" --data-urlencode "$PASS_FIELD=$LOGIN_PASS")"
+    [ "$code" = "$OK_CODE" ] || { echo "login failed: HTTP $code (expected $OK_CODE)" >&2; exit 1; }
+    ;;
+  command)
+    [ -n "$COOKIE_COMMAND" ] || { echo "SNAP_COOKIE_COMMAND が未設定" >&2; exit 1; }
+    ck="$(bash -c "$COOKIE_COMMAND")"
+    [ -n "$ck" ] || { echo "cookie command returned nothing" >&2; exit 1; }
+    cookie_header=(-H "Cookie: $ck")
+    ;;
+  none) ;;
+  *) echo "unknown SNAP_LOGIN_MODE: $MODE" >&2; exit 1 ;;
+esac
+
+git rev-parse HEAD > "$out/REV" 2>/dev/null || true
+: > "$out/index.tsv"
+
+# 毎回変わる値の除去: hidden の CSRF、meta の csrf-token、Cookie 文字列、インラインJSのトークン、?v= キャッシュ破り、Livewire のスナップショット
+normalize='s/(name="_token" value=")[^"]*/\1/g; s/(csrf-token" content=")[^"]*/\1/g; s/XSRF-TOKEN=[^;"]*//g; s/(tokenField\.value *= *'"'"')[^'"'"']*/\1/g; s/\?v=[^"'"'"' >]*//g; s/(wire:snapshot=")[^"]*/\1/g; s/(wire:id=")[^"]*/\1/g'
+[ -n "$EXTRA_SED" ] && normalize="$normalize; $EXTRA_SED"
+
+while IFS= read -r p || [ -n "$p" ]; do
+  case "$p" in ''|'#'*) continue ;; esac
+  rel="${p#/}"                                   # 先頭の / は落とす（"/" はルート）
+  name="$(printf '%s' "${rel:-root}" | sed 's/[^A-Za-z0-9._-]/_/g')"
+  # ${arr[@]+"${arr[@]}"} は bash 3.2（macOS 既定）で空配列を set -u 下で展開するための書き方
+  status="$(curl -s -b "$cj" -c "$cj" ${cookie_header[@]+"${cookie_header[@]}"} -o "$out/$name.raw" -w '%{http_code}' "$BASE/$rel")"
+  sed -E "$normalize" "$out/$name.raw" > "$out/$name.html"
+  rm -f "$out/$name.raw"
+  printf '%s\t%s\t%s\n' "$status" "$p" "$name.html" >> "$out/index.tsv"
+  echo "$status $p"
+done < "$urls"

@@ -1,0 +1,128 @@
+#!/usr/bin/env -S python3 -I
+"""改修前後の画面HTMLを機械比較する（/ship の動作検証役が使う）。
+
+usage: bin/screen-compare <before_dir> <after_dir>
+  before_dir / after_dir … bin/screen-snapshot の出力ディレクトリ
+
+画面ごとに次を出す。
+  HTTP状態の変化 / エラー文字列の有無 / 重複id（after で新たに出たもの） /
+  構造要素の件数変化（form, table, 見出し, 入力欄, ボタン, セクション見出し等） / 増減行数
+さらに after_dir/<画面>.diff に正規化済みHTMLの unified diff を書く。
+
+判定はしない（数字と印を出すだけ）。読む側が「タスクで説明できる変化か」を判断する。
+終了コードは常に 0。
+"""
+import difflib
+import os
+import re
+import sys
+from collections import Counter
+
+ERROR_MARKERS = ["SQLSTATE", "ErrorException", "Undefined ", "Whoops", "Exception", "Fatal error", "Parse error"]
+STRUCT = [
+    ("form", r"<form\b"),
+    ("table", r"<table\b"),
+    ("sec-label", r'class="[^"]*\bsec-label\b'),
+    ("h1-3", r"<h[1-3]\b"),
+    ("acd-label", r'class="[^"]*\bacd-label\b'),
+    ("input", r"<input\b"),
+    ("select", r"<select\b"),
+    ("textarea", r"<textarea\b"),
+    ("button", r"<button\b"),
+    ("a", r"<a\b"),
+    ("img", r"<img\b"),
+    ("script", r"<script\b"),
+]
+
+
+def read_index(d):
+    rows = []
+    p = os.path.join(d, "index.tsv")
+    if not os.path.exists(p):
+        return rows
+    with open(p, encoding="utf-8") as fh:
+        for line in fh:
+            parts = line.rstrip("\n").split("\t")
+            if len(parts) == 3:
+                rows.append(parts)
+    return rows
+
+
+def load(d, name):
+    p = os.path.join(d, name)
+    if not os.path.exists(p):
+        return None
+    with open(p, encoding="utf-8", errors="replace") as fh:
+        return fh.read()
+
+
+def metrics(html):
+    m = {k: len(re.findall(pat, html, flags=re.I)) for k, pat in STRUCT}
+    ids = Counter(re.findall(r'\bid="([^"]+)"', html))
+    m["_dup_ids"] = sorted(k for k, v in ids.items() if v > 1)
+    m["_errors"] = [e for e in ERROR_MARKERS if e in html]
+    m["_lines"] = html.count("\n") + 1
+    return m
+
+
+def main():
+    if len(sys.argv) != 3:
+        print(__doc__)
+        return 0
+    before_dir, after_dir = sys.argv[1], sys.argv[2]
+    before_idx = {path: (status, fname) for status, path, fname in read_index(before_dir)}
+    after_rows = read_index(after_dir)
+    rev_b = (load(before_dir, "REV") or "?").strip()[:12]
+    rev_a = (load(after_dir, "REV") or "?").strip()[:12]
+    print(f"before={before_dir} (rev {rev_b})")
+    print(f"after ={after_dir} (rev {rev_a})")
+    print()
+    print("| 画面 | HTTP | エラー | 重複id(新規) | 構造変化 | 増減行 | 印 |")
+    print("|---|---|---|---|---|---|---|")
+    flagged = 0
+    for status_a, path, fname in after_rows:
+        html_a = load(after_dir, fname) or ""
+        status_b, fname_b = before_idx.get(path, ("-", fname))
+        html_b = load(before_dir, fname_b) or ""
+        ma, mb = metrics(html_a), metrics(html_b)
+        flags = []
+        http = f"{status_b}→{status_a}" if status_b != status_a else status_a
+        if status_b != "-" and status_b != status_a:
+            flags.append("STATUS")
+        if status_a != "200":
+            flags.append("HTTP" + status_a)
+        # エラー文字列は改修前に無かったものだけ印にする（正常本文に "Exception" 等が含まれる画面の誤検知を避ける）
+        new_errs = [e for e in ma["_errors"] if e not in mb["_errors"]]
+        err = ",".join(new_errs) if new_errs else "-"
+        if new_errs:
+            flags.append("ERR")
+        new_dups = [i for i in ma["_dup_ids"] if i not in mb["_dup_ids"]]
+        dup = ",".join(new_dups) if new_dups else "-"
+        if new_dups:
+            flags.append("DUPID")
+        changes = []
+        for k, _ in STRUCT:
+            if ma[k] != mb[k]:
+                changes.append(f"{k} {mb[k]}→{ma[k]}")
+        struct = ", ".join(changes) if changes else "-"
+        if changes:
+            flags.append("STRUCT")
+        diff = list(difflib.unified_diff(html_b.splitlines(), html_a.splitlines(), lineterm="",
+                                         fromfile=f"before/{fname_b}", tofile=f"after/{fname}", n=2))
+        plus = sum(1 for l in diff if l.startswith("+") and not l.startswith("+++"))
+        minus = sum(1 for l in diff if l.startswith("-") and not l.startswith("---"))
+        if plus or minus:
+            flags.append("TEXT")
+            with open(os.path.join(after_dir, fname.replace(".html", ".diff")), "w", encoding="utf-8") as fh:
+                fh.write("\n".join(diff) + "\n")
+        if flags:
+            flagged += 1
+        print(f"| {path} | {http} | {err} | {dup} | {struct} | +{plus}/-{minus} | {' '.join(flags) or '-'} |")
+    print()
+    print(f"pages={len(after_rows)} changed_or_flagged={flagged}")
+    print("印: STATUS=HTTP状態が変化 ERR=エラー文字列 DUPID=重複idが新たに発生 STRUCT=構造要素の件数変化 TEXT=本文差分あり(.diff 参照)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

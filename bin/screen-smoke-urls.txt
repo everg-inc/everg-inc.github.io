@@ -1,0 +1,8 @@
+# 主要画面の固定一覧（出荷前の自己確認 ~/.claude/hooks/ship-precheck.sh が毎回改修前後で比較する）
+# 1行1パス。SNAP_BASE（bin/screen.conf）からの相対。ID はローカルDBに実在するものを使う。
+# 変更内容に関係なく毎回全部比較し、ここに変化が出たら自己確認は不合格になる（意図した変化なら --urls にその画面を挙げる）。
+# 取得ごとに並び順や内容が揺れる画面（ランダム表示・日時依存の一覧）は入れない。
+#
+# 初回セットアップ（ship-setup.sh）が候補を書き出す。全部 200 になるまで削る・ID を直す:
+#   bin/screen-snapshot /tmp/snap bin/screen-smoke-urls.txt
+/
