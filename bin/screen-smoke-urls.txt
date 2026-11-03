@@ -6,3 +6,4 @@
 # 初回セットアップ（ship-setup.sh）が候補を書き出す。全部 200 になるまで削る・ID を直す:
 #   bin/screen-snapshot /tmp/snap bin/screen-smoke-urls.txt
 /
+/works/
