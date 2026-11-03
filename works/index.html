@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>実績紹介 | 株式会社EverG</title>
+<link rel="icon" href="../assets/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<meta name="description" content="株式会社EverGの実績紹介。業務システムのWeb化、既存システムの移植（CakePHP→Laravel）、AIによる検索の組み込み。">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#f6f5ef;--ink:#1f2a22;--moss:#1f6b3a;--leaf:#6cc04a;--mist:#dfe8dc;--line:#cfd8cc}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink);font-family:"Zen Kaku Gothic New",sans-serif;font-weight:300;line-height:1.9}
+.bar{max-width:900px;margin:0 auto;padding:24px;display:flex;align-items:center;gap:12px}
+.bar a{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--ink);letter-spacing:.12em}
+.bar img{width:44px}
+.head{max-width:900px;margin:0 auto;padding:56px 24px 0}
+.head h1{font-size:clamp(24px,4vw,34px);font-weight:400;letter-spacing:.12em;margin:0 0 12px}
+.head p{margin:0;color:#55655a}
+section{max-width:900px;margin:0 auto;padding:64px 24px}
+h2{font-family:"Cormorant Garamond",serif;font-weight:400;font-size:14px;letter-spacing:.4em;color:var(--moss);margin:0 0 28px;text-transform:uppercase}
+h2::before{content:"";display:inline-block;width:32px;height:1px;background:var(--moss);vertical-align:middle;margin-right:14px}
+.wk{display:grid;gap:20px}
+.wk article{background:#fff;border:1px solid var(--line);padding:26px 24px;border-radius:2px}
+.wk .kind{display:inline-block;font-size:12px;letter-spacing:.1em;color:var(--moss);border:1px solid var(--moss);padding:0 10px;margin-bottom:10px}
+.wk h3{font-weight:400;font-size:18px;margin:0 0 8px;letter-spacing:.06em}
+.wk p{margin:0 0 8px;font-size:15px;color:#3d4a40}
+.wk ul{margin:0 0 8px;padding-left:1.2em;font-size:14px;color:#55655a}
+.wk .tech{font-family:"Cormorant Garamond",serif;font-size:15px;color:#7a8a7d;letter-spacing:.06em;margin:0}
+.pr{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}
+.pr a{display:block;background:#fff;border:1px solid var(--line);padding:26px 22px;border-radius:2px;text-decoration:none;color:inherit;transition:border-color .2s,transform .2s}
+.pr a:hover{border-color:var(--moss);transform:translateY(-2px)}
+.pr h3{font-weight:400;font-size:17px;margin:0 0 4px;letter-spacing:.06em;color:var(--moss)}
+.pr .for{font-size:12px;color:#7a8a7d;letter-spacing:.08em;margin:0}
+.pr .url{display:block;margin-top:12px;font-family:"Cormorant Garamond",serif;font-size:13px;color:var(--leaf);letter-spacing:.06em}
+.note{margin:0 0 24px;color:#55655a}
+a{color:var(--moss)}
+footer{text-align:center;padding:60px 20px;color:#7a8a7d;font-size:12px;letter-spacing:.2em;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="bar"><a href="../"><img src="../assets/logo-mark.png" alt="">株式会社EverG</a></div>
+
+<div class="head">
+<h1>実績紹介</h1>
+<p>業務システムのWeb化、既存システムの移植、AIによる検索の組み込みを手がけています。</p>
+</div>
+
+<section>
+<h2>Works</h2>
+<div class="wk">
+<article>
+<span class="kind">Webシステム化</span>
+<h3>木工房様　日報・予実・見積管理システム</h3>
+<p>スプレッドシートとGoogle Apps Scriptで回していた業務を、Webシステムに作り直しました。</p>
+<ul>
+<li>日報の入力（作業写真はGoogleドライブへ直接保存）</li>
+<li>物件ごとの予算と実績の集計、予実表のPDF出力</li>
+<li>見積書のPDF出力</li>
+<li>出勤簿のExcel出力（Googleドライブへ保存）</li>
+<li>商品・仕入先・外注先・単価などのマスタ管理画面</li>
+</ul>
+<p class="tech">Laravel / AWS</p>
+</article>
+<article>
+<span class="kind">移植</span>
+<h3>写真スタジオ向け業務システムの移植</h3>
+<p>複数のスタジオが使うクラウド型の業務システム（撮影予約・衣装・売上・入金・納期管理など、47テーブル）を、CakePHP 2からLaravelへ全面的に移植しました。お客様向けのWeb予約画面も含みます。</p>
+<p class="tech">Laravel / AWS</p>
+</article>
+<article>
+<span class="kind">移植</span>
+<h3>製造業様　社内業務システムの移植</h3>
+<p>営業日報・活動報告、売上報告、取引先、購買と審査、予定、電子保存書類を扱う社内システムを、CakePHP 2からLaravelへ移植し、2026年10月に本番を切り替えました。</p>
+<p class="tech">Laravel</p>
+</article>
+<article>
+<span class="kind">AI検索</span>
+<h3>AIアシスタント</h3>
+<p>上の写真スタジオ向けシステムと製造業様の社内システムに、日本語で質問するとデータを探して答える仕組みを組み込みました。</p>
+<ul>
+<li>管理画面やLINEから質問できます</li>
+<li>検索は読み取り専用で実行し、利用者の権限で見られる範囲に絞ります</li>
+<li>結果は表で表示し、CSVで書き出せます</li>
+</ul>
+<p class="tech">Claude API / AWS Lambda</p>
+</article>
+</div>
+</section>
+
+<section>
+<h2>Products</h2>
+<p class="note">企画から開発・運営まで自社で行っているサービスです。</p>
+<div class="pr">
+<a href="https://okeikokanri.com" target="_blank" rel="noopener">
+<h3>お稽古管理帳</h3>
+<p class="for">書道・そろばん・ピアノ・武道などの教室向け</p>
+<span class="url">okeikokanri.com</span>
+</a>
+<a href="https://zairyukanri.com" target="_blank" rel="noopener">
+<h3>在留期限管理帳</h3>
+<p class="for">行政書士事務所・監理団体向け</p>
+<span class="url">zairyukanri.com</span>
+</a>
+</div>
+</section>
+
+<section>
+<h2>Contact</h2>
+<p>ご相談は <a href="mailto:matsuo@everg-inc.com">matsuo@everg-inc.com</a> までお送りください。</p>
+</section>
+
+<footer>© 2026 EverG Inc.</footer>
+</body>
+</html>
